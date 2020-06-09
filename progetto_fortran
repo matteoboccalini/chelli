@@ -1,16 +1,17 @@
 Program progetto_fortran
 !Programma per il calcolo della funzione di partizione traslazionale e vibrazionale per molecole gassose
 
-implicit none function 	
+ implicit none	
     integer, parameter :: ndata=100
-    real(8) :: a, b, c, T, P, V, molecular_mass, num_mol, R, R_si, h, N_a, k_B, f_tr, f_vib, molecular_mass_si, V_si, lamda
+    real(8) :: a, b, c, Beta, T, P, V, molecular_mass, num_mol, R, R_si, h, N_a, k_B, f_tr, f_vib_tot
+    real(8) :: molecular_mass_si, V_si, lam
     real, PARAMETER :: Pi = 3.1415927
     integer, dimension(ndata) :: zeta 
-    real,dimension(ndata):: x, y, z, freq, atomic_mass 
+    real,dimension(ndata):: x, y, z, freq, atomic_mass,f_vib
     character(2) :: linear
     character(2), dimension(ndata):: symb 
 !x,y,z sono i vettori delle coordinate, freq è il vettore delle frequenze e Z è il vettore con i numeri atomici.
-    integer::i, num_atoms, num_molecules
+    integer::i, num_atoms, num_molecules, n_modes
 !lettura    
     open(10, file='input_CH4')
     read(10,*)
@@ -26,15 +27,14 @@ implicit none function
 		read(10,*) zeta(i), x(i), y(i), z(i)
 	enddo
 	read(10,*)
-    if (linear == 'y') then		
-		do i=1, (3*num_atoms-5)
-			read(10,*) freq(i)
-		enddo
+    if (linear == 'y') then	
+		n_modes = 3*num_atoms-5
 	else 
-	    do i=1, (3*num_atoms-6)
+		n_modes = 3*num_atoms-6
+	end if	
+		do i=1,n_modes
 			read(10,*) freq(i)
 		enddo
-	end if	
 !---legenda----------------------------------------------------
 	do i=1,num_atoms
 		if (zeta(i) == 16) then
@@ -63,6 +63,7 @@ N_a = 6.02214199E23   !Numero di Avogadro
 h = 6.62606876E-34 !Costante di Planck (J s)
 k_B  = 1.3806503E-23  !Costante di Boltzmann (J/K)
 R_si   = 8.314472   !Costante universale ()
+c = 2.99792458E08  !Velocita’ della luce (m/s)
 !---calcolo peso formula--------------------------------------
 	molecular_mass = 0.
 	do i=1, num_atoms
@@ -70,6 +71,8 @@ R_si   = 8.314472   !Costante universale ()
 	enddo	
 !---calcolo numero moli----------------------------------------	
 !     num_mol = 
+!---calcolo beta-----------------------------------------------
+Beta = 1/(k_B*T) ! (J)
 !---calcolo pressione------------------------------------------
     P = num_mol*R*T/V
 !   V = num_mol*R*T/P se NPT 
@@ -77,8 +80,16 @@ R_si   = 8.314472   !Costante universale ()
 V_si = V / 1000 ! m^3
 molecular_mass_si = molecular_mass / 1000 ! kg
 !---funzione di partizione traslazionale-----------------------
-lamda = h/(2*Pi*k_b*T*(molecular_mass_si/N_a))**0.5 ! raggio termico
-f_tr = V_si/lamda**3
+lam = h/(2*Pi*k_b*T*(molecular_mass_si/N_a))**0.5 ! raggio termico
+f_tr = V_si/lam**3
+!---funzione di partizione vibrazionale-----------------------
+do i=1,n_modes
+	f_vib(i) = 1/(1 - EXP(-1*Beta*h*c*100*freq(i)))
+enddo
+f_vib_tot = 1	
+do i=1,n_modes
+	f_vib_tot = f_vib_tot*f_vib(i)
+enddo	 
 !---scrittura di prova-----------------------------------------     
     write(*,*) 'Temperature (K)', T
     write(*,*) 'Pressure (atm)', P
@@ -109,7 +120,9 @@ f_tr = V_si/lamda**3
     write(*,*) '--------------------' 	
     write(*,*) 'Molecular mass (g/mol)                ', molecular_mass
 	write(*,*) 'Pressure (atm)                        ', P
-	write(*,*) 'Thermal wavelength (m)                ', lamda
+	write(*,*) 'Thermal wavelength (m)                ', lam
 	write(*,*) 'Traslational partion function         ', f_tr
+	write(*,*) 'Vibrational partion function          ', f_vib_tot
+	
 stop
 end program progetto_fortran
