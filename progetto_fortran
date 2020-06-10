@@ -4,10 +4,10 @@ Program progetto_fortran
  implicit none	
     integer, parameter :: ndata=100
     real(8) :: a, b, c, Beta, T, P, V, molecular_mass, num_mol, R, R_si, h, N_a, k_B, f_tr, f_vib_tot
-    real(8) :: molecular_mass_si, V_si, lam
+    real(8) :: molecular_mass_si, V_si, lam, x_cm, y_cm, z_cm, I_x, I_y, I_z
     real, PARAMETER :: Pi = 3.1415927
     integer, dimension(ndata) :: zeta 
-    real,dimension(ndata):: x, y, z, freq, atomic_mass,f_vib
+    real,dimension(ndata):: x, y, z, freq, atomic_mass,f_vib, teta_vib
     character(2) :: linear
     character(2), dimension(ndata):: symb 
 !x,y,z sono i vettori delle coordinate, freq è il vettore delle frequenze e Z è il vettore con i numeri atomici.
@@ -39,16 +39,16 @@ Program progetto_fortran
 	do i=1,num_atoms
 		if (zeta(i) == 16) then
 			symb(i) = 'S'
-			atomic_mass = 32.06 
+			atomic_mass(i) = 32.06 
 		else if (zeta(i) == 9) then
 			symb(i) = 'F'
 			atomic_mass = 18.998 
 		else if (zeta(i) == 1) then
 			symb(i) = 'H'
-			atomic_mass = 1.008
+			atomic_mass(i) = 1.008
 		else if (zeta(i) == 18) then
 			symb(i) = 'Ar'
-			atomic_mass = 39.948
+			atomic_mass(i) = 39.948
 		else if (zeta(i) == 6) then
 			symb(i) = 'C'
 			atomic_mass = 12.011				
@@ -69,20 +69,60 @@ c = 2.99792458E08  !Velocita’ della luce (m/s)
 	do i=1, num_atoms
 		molecular_mass=molecular_mass + atomic_mass(i)
 	enddo	
+!---coordinate centro di massa---------------------------------------
+x_cm = 0
+do i=1,num_atoms
+	x_cm = x_cm + (atomic_mass(i)*x(i))
+enddo
+x_cm = x_cm/molecular_mass
+y_cm = 0
+do i=1,num_atoms
+	y_cm = y_cm + (atomic_mass(i)*y(i))
+enddo
+y_cm = y_cm/molecular_mass
+z_cm = 0
+do i=1,num_atoms
+	z_cm = z_cm + (atomic_mass(i)*z(i))
+enddo
+z_cm = z_cm/molecular_mass
+	
+!---calcolo momento inerzia------------------------------------	
+I_x = 0
+do i=1,num_atoms
+	I_x = I_x + atomic_mass(i)*(x(i)-x_cm)**2
+enddo
+I_y = 0
+do i=1,num_atoms
+	I_y = I_y + atomic_mass(i)*(z(i)-y_cm)**2
+enddo
+I_z = 0
+do i=1,num_atoms
+	I_z = I_z + atomic_mass(i)*(z(i)-z_cm)**2
+enddo
 !---calcolo numero moli----------------------------------------	
 !     num_mol = 
+
 !---calcolo beta-----------------------------------------------
 Beta = 1/(k_B*T) ! (J)
+
 !---calcolo pressione------------------------------------------
     P = num_mol*R*T/V
 !   V = num_mol*R*T/P se NPT 
+
 !---conversioni-----------------------------------------------
 V_si = V / 1000 ! m^3
 molecular_mass_si = molecular_mass / 1000 ! kg
+
 !---funzione di partizione traslazionale-----------------------
-lam = h/(2*Pi*k_b*T*(molecular_mass_si/N_a))**0.5 ! raggio termico
+lam = h/(2*Pi*k_b*T*(molecular_mass_si/N_a))**0.5 ! raggio termico (m)
 f_tr = V_si/lam**3
-!---funzione di partizione vibrazionale-----------------------
+
+!---temperatura vibrazionale-----------------------------------
+do i=1,n_modes
+	teta_vib(i)= (h*c*100*freq(i))/(k_B)          ! vibrational temperature (K)
+enddo	
+
+!---funzione di partizione vibrazionale------------------------
 do i=1,n_modes
 	f_vib(i) = 1/(1 - EXP(-1*Beta*h*c*100*freq(i)))
 enddo
@@ -90,6 +130,7 @@ f_vib_tot = 1
 do i=1,n_modes
 	f_vib_tot = f_vib_tot*f_vib(i)
 enddo	 
+
 !---scrittura di prova-----------------------------------------     
     write(*,*) 'Temperature (K)', T
     write(*,*) 'Pressure (atm)', P
@@ -123,6 +164,7 @@ enddo
 	write(*,*) 'Thermal wavelength (m)                ', lam
 	write(*,*) 'Traslational partion function         ', f_tr
 	write(*,*) 'Vibrational partion function          ', f_vib_tot
-	
+!	write(*,*) 'Vibrational temperature (K)           ', teta_vib()
+	write(*,*) 'funzione da provare                   ', x_cm, y_cm, z_cm, I_x, I_y, I_z
 stop
 end program progetto_fortran
